@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parkour Platformer</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0d0d12;
+      font-family: 'JetBrains Mono', monospace;
+      overflow: hidden;
+    }
+
+    .game-wrapper {
+      border: 3px solid #2a2a3a;
+      border-radius: 12px;
+      box-shadow: 0 0 60px rgba(100, 200, 255, 0.15), inset 0 0 80px rgba(0, 0, 0, 0.4);
+      overflow: hidden;
+      background: #12121a;
+    }
+
+    h1 {
+      color: #64c8ff;
+      font-size: 1.25rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 12px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .controls {
+      color: #6b6b80;
+      font-size: 0.7rem;
+      text-align: center;
+      padding: 0 12px 12px;
+      letter-spacing: 0.1em;
+    }
+
+    .controls kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      background: #1e1e2a;
+      border: 1px solid #3a3a4a;
+      border-radius: 4px;
+      color: #64c8ff;
+      margin: 0 2px;
+    }
+
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(13, 13, 18, 0.92);
+      padding: 24px;
+    }
+
+    .overlay.hidden {
+      display: none;
+    }
+
+    .menu-title {
+      color: #64c8ff;
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .menu-sub {
+      color: #6b6b80;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      margin-bottom: 40px;
+    }
+
+    .btn {
+      font-family: inherit;
+      font-size: 0.85rem;
+      letter-spacing: 0.12em;
+      padding: 14px 32px;
+      margin: 8px;
+      border: 2px solid #2a3a4a;
+      border-radius: 8px;
+      background: #1e1e2a;
+      color: #64c8ff;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+
+    .btn:hover {
+      background: #252535;
+      border-color: #3a4a5a;
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .level-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 12px;
+      max-width: 560px;
+      max-height: 320px;
+      overflow-y: auto;
+      margin: 24px 0;
+      padding-right: 8px;
+    }
+
+    .level-btn {
+      font-family: inherit;
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      padding: 20px 16px;
+      border: 2px solid #2a3a4a;
+      border-radius: 8px;
+      background: #1e1e2a;
+      color: #8ab4d4;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+
+    .level-btn:hover {
+      background: #252535;
+      border-color: #64c8ff;
+      color: #64c8ff;
+      transform: translateY(-2px);
+    }
+
+    .level-btn .level-num {
+      display: block;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #64c8ff;
+      margin-bottom: 4px;
+    }
+
+    .back-row {
+      margin-top: 20px;
+    }
+
+    .game-wrapper {
+      position: relative;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px 0;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .header-row .controls { padding: 0; margin: 0; }
+
+    .btn-small {
+      font-family: inherit;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      padding: 6px 12px;
+      border: 1px solid #2a3a4a;
+      border-radius: 6px;
+      background: #1e1e2a;
+      color: #6b6b80;
+      cursor: pointer;
+    }
+
+    .btn-small:hover { color: #64c8ff; border-color: #3a4a5a; }
+  </style>
+</head>
+<body>
+  <div class="game-wrapper">
+    <div class="header-row">
+      <h1>Parkour Platformer</h1>
+      <p class="controls"><kbd>W</kbd> / <kbd>Space</kbd> Jump · <kbd>A</kbd> Left · <kbd>D</kbd> Right</p>
+      <button type="button" class="btn-small level-select-btn hidden" id="backToLevels">Levels</button>
+    </div>
+    <p class="controls esc-hint hidden" id="escHint" style="padding: 0 12px 8px;"><kbd>Esc</kbd> Level select</p>
+    <div style="position: relative;">
+      <canvas id="game" width="800" height="480"></canvas>
+
+      <div class="overlay" id="startMenu">
+        <span class="menu-title">Parkour Platformer</span>
+        <span class="menu-sub">Select a level to play</span>
+        <button type="button" class="btn" id="btnSelectLevel">Select Level</button>
+      </div>
+
+      <div class="overlay hidden" id="levelSelect">
+        <span class="menu-title">Choose Level</span>
+        <div class="level-grid" id="levelGrid"></div>
+        <div class="back-row">
+          <button type="button" class="btn" id="btnBackMenu">Back</button>
+        </div>
+      </div>
+
+      <div class="overlay hidden" id="levelCompleteOverlay">
+        <span class="menu-title">Level Complete!</span>
+        <span class="menu-sub" id="completeLevelName">Level 1</span>
+        <p class="controls" style="margin-bottom: 24px; font-size: 1.2rem; color: #64c8ff;"><span id="completeTime">0.00</span> s</p>
+        <button type="button" class="btn" id="btnBackToLevels">Back to Levels</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    // Level definitions: name, spawn position, platforms
+    const LEVELS = [
+      {
+        name: 'Warm Up',
+        levelWidth: 800,
+        startX: 50,
+        startY: 404,
+        endZone: { x: 720, y: 368, w: 80, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 140, h: 40 },
+          { x: 220, y: 400, w: 120, h: 24 },
+          { x: 400, y: 360, w: 100, h: 24 },
+          { x: 550, y: 320, w: 120, h: 24 },
+          { x: 708, y: 404, w: 92, h: 40 },
+        ]
+      },
+      {
+        name: 'Stepping Stones',
+        levelWidth: 800,
+        startX: 40,
+        startY: 404,
+        endZone: { x: 724, y: 368, w: 76, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 100, h: 40 },
+          { x: 160, y: 380, w: 80, h: 24 },
+          { x: 290, y: 320, w: 90, h: 24 },
+          { x: 420, y: 260, w: 80, h: 24 },
+          { x: 540, y: 320, w: 90, h: 24 },
+          { x: 668, y: 404, w: 132, h: 40 },
+        ]
+      },
+      {
+        name: 'High Rise',
+        levelWidth: 800,
+        startX: 50,
+        startY: 404,
+        endZone: { x: 722, y: 128, w: 78, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 120, h: 40 },
+          { x: 180, y: 380, w: 100, h: 24 },
+          { x: 320, y: 320, w: 90, h: 24 },
+          { x: 450, y: 260, w: 100, h: 24 },
+          { x: 590, y: 200, w: 90, h: 24 },
+          { x: 700, y: 160, w: 100, h: 24 },
+          { x: 200, y: 280, w: 70, h: 20 },
+          { x: 0, y: 320, w: 60, h: 20 },
+          { x: 140, y: 200, w: 60, h: 20 },
+          { x: 260, y: 160, w: 70, h: 20 },
+          { x: 580, y: 160, w: 80, h: 20 },
+        ]
+      },
+      {
+        name: 'Gauntlet',
+        levelWidth: 800,
+        startX: 40,
+        startY: 404,
+        endZone: { x: 718, y: 288, w: 82, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 90, h: 40 },
+          { x: 150, y: 360, w: 60, h: 20 },
+          { x: 260, y: 440, w: 70, h: 40 },
+          { x: 370, y: 300, w: 55, h: 20 },
+          { x: 470, y: 380, w: 60, h: 20 },
+          { x: 570, y: 280, w: 70, h: 20 },
+          { x: 678, y: 348, w: 122, h: 40 },
+          { x: 190, y: 280, w: 45, h: 16 },
+        ]
+      },
+      {
+        name: 'Imposible?',
+        levelWidth: 800,
+        startX: 50,
+        startY: 404,
+        endZone: { x: 732, y: 288, w: 68, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 120, h: 40 },
+          { x: 200, y: 200, w: 90, h: 24 },
+          { x: 340, y: 320, w: 80, h: 24 },
+          { x: 470, y: 180, w: 100, h: 24 },
+          { x: 620, y: 260, w: 90, h: 24 },
+          { x: 738, y: 332, w: 62, h: 24 },
+          { x: 300, y: 440, w: 120, h: 40 },
+          { x: 0, y: 160, w: 55, h: 20 },
+        ]
+      },
+      {
+        name: 'The Long Road',
+        levelWidth: 1400,
+        startX: 40,
+        startY: 404,
+        endZone: { x: 1320, y: 368, w: 80, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 120, h: 40 },
+          { x: 180, y: 400, w: 90, h: 24 },
+          { x: 320, y: 360, w: 80, h: 24 },
+          { x: 450, y: 320, w: 100, h: 24 },
+          { x: 520, y: 400, w: 120, h: 24 },
+          { x: 720, y: 340, w: 80, h: 24 },
+          { x: 850, y: 280, w: 90, h: 24 },
+          { x: 980, y: 340, w: 80, h: 24 },
+          { x: 1100, y: 400, w: 90, h: 24 },
+          { x: 1240, y: 404, w: 160, h: 40 },
+        ]
+      },
+      {
+        name: 'Up and Down',
+        levelWidth: 1600,
+        startX: 50,
+        startY: 404,
+        endZone: { x: 1520, y: 368, w: 80, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 110, h: 40 },
+          { x: 150, y: 320, w: 80, h: 24 },
+          { x: 270, y: 400, w: 90, h: 24 },
+          { x: 400, y: 260, w: 80, h: 24 },
+          { x: 520, y: 360, w: 90, h: 24 },
+          { x: 650, y: 220, w: 80, h: 24 },
+          { x: 770, y: 320, w: 90, h: 24 },
+          { x: 900, y: 400, w: 80, h: 24 },
+          { x: 1020, y: 280, w: 90, h: 24 },
+          { x: 1150, y: 380, w: 80, h: 24 },
+          { x: 1270, y: 260, w: 90, h: 24 },
+          { x: 1400, y: 404, w: 200, h: 40 },
+        ]
+      },
+      {
+        name: 'Pit Run',
+        levelWidth: 1800,
+        startX: 40,
+        startY: 404,
+        endZone: { x: 1720, y: 368, w: 80, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 100, h: 40 },
+          { x: 140, y: 380, w: 70, h: 24 },
+          { x: 250, y: 320, w: 70, h: 24 },
+          { x: 360, y: 440, w: 80, h: 40 },
+          { x: 480, y: 300, w: 70, h: 24 },
+          { x: 590, y: 380, w: 70, h: 24 },
+          { x: 700, y: 260, w: 70, h: 24 },
+          { x: 810, y: 340, w: 70, h: 24 },
+          { x: 920, y: 420, w: 70, h: 24 },
+          { x: 1030, y: 300, w: 70, h: 24 },
+          { x: 1140, y: 380, w: 70, h: 24 },
+          { x: 1250, y: 260, w: 70, h: 24 },
+          { x: 1360, y: 360, w: 70, h: 24 },
+          { x: 1470, y: 404, w: 330, h: 40 },
+        ]
+      },
+      {
+        name: 'Tower Hop',
+        levelWidth: 2000,
+        startX: 50,
+        startY: 404,
+        endZone: { x: 1920, y: 128, w: 80, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 110, h: 40 },
+          { x: 150, y: 380, w: 80, h: 24 },
+          { x: 270, y: 320, w: 80, h: 24 },
+          { x: 390, y: 260, w: 80, h: 24 },
+          { x: 510, y: 200, w: 80, h: 24 },
+          { x: 630, y: 320, w: 80, h: 24 },
+          { x: 750, y: 260, w: 80, h: 24 },
+          { x: 870, y: 200, w: 80, h: 24 },
+          { x: 990, y: 280, w: 80, h: 24 },
+          { x: 1110, y: 340, w: 80, h: 24 },
+          { x: 1230, y: 260, w: 80, h: 24 },
+          { x: 1350, y: 200, w: 80, h: 24 },
+          { x: 1470, y: 180, w: 80, h: 24 },
+          { x: 1590, y: 160, w: 330, h: 24 },
+        ]
+      },
+      {
+        name: 'Gauntlet II',
+        levelWidth: 2200,
+        startX: 40,
+        startY: 404,
+        endZone: { x: 2120, y: 288, w: 80, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 100, h: 40 },
+          { x: 130, y: 360, w: 65, h: 22 },
+          { x: 235, y: 300, w: 65, h: 22 },
+          { x: 340, y: 440, w: 75, h: 40 },
+          { x: 455, y: 340, w: 65, h: 22 },
+          { x: 560, y: 280, w: 65, h: 22 },
+          { x: 665, y: 380, w: 65, h: 22 },
+          { x: 770, y: 320, w: 65, h: 22 },
+          { x: 875, y: 260, w: 65, h: 22 },
+          { x: 980, y: 400, w: 65, h: 22 },
+          { x: 1085, y: 340, w: 65, h: 22 },
+          { x: 1190, y: 280, w: 65, h: 22 },
+          { x: 1295, y: 360, w: 65, h: 22 },
+          { x: 1400, y: 300, w: 65, h: 22 },
+          { x: 1505, y: 240, w: 65, h: 22 },
+          { x: 1610, y: 348, w: 510, h: 40 },
+        ]
+      },
+      {
+        name: 'Sky Scraper',
+        levelWidth: 2400,
+        startX: 50,
+        startY: 404,
+        endZone: { x: 2320, y: 88, w: 80, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 100, h: 40 },
+          { x: 140, y: 320, w: 75, h: 24 },
+          { x: 260, y: 400, w: 75, h: 24 },
+          { x: 380, y: 280, w: 75, h: 24 },
+          { x: 500, y: 360, w: 75, h: 24 },
+          { x: 620, y: 240, w: 75, h: 24 },
+          { x: 740, y: 340, w: 75, h: 24 },
+          { x: 860, y: 420, w: 75, h: 24 },
+          { x: 980, y: 300, w: 75, h: 24 },
+          { x: 1100, y: 380, w: 75, h: 24 },
+          { x: 1220, y: 260, w: 75, h: 24 },
+          { x: 1340, y: 360, w: 75, h: 24 },
+          { x: 1460, y: 440, w: 75, h: 24 },
+          { x: 1580, y: 320, w: 75, h: 24 },
+          { x: 1700, y: 220, w: 75, h: 24 },
+          { x: 1820, y: 300, w: 75, h: 24 },
+          { x: 1940, y: 180, w: 75, h: 24 },
+          { x: 2060, y: 260, w: 75, h: 24 },
+          { x: 2180, y: 160, w: 75, h: 24 },
+          { x: 2300, y: 124, w: 120, h: 24 },
+        ]
+      },
+      {
+        name: 'The Marathon',
+        levelWidth: 2600,
+        startX: 40,
+        startY: 404,
+        endZone: { x: 2520, y: 368, w: 80, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 110, h: 40 },
+          { x: 150, y: 380, w: 70, h: 24 },
+          { x: 260, y: 320, w: 70, h: 24 },
+          { x: 370, y: 400, w: 70, h: 24 },
+          { x: 480, y: 280, w: 70, h: 24 },
+          { x: 590, y: 360, w: 70, h: 24 },
+          { x: 700, y: 240, w: 70, h: 24 },
+          { x: 810, y: 340, w: 70, h: 24 },
+          { x: 920, y: 420, w: 70, h: 24 },
+          { x: 1030, y: 300, w: 70, h: 24 },
+          { x: 1140, y: 380, w: 70, h: 24 },
+          { x: 1250, y: 260, w: 70, h: 24 },
+          { x: 1360, y: 360, w: 70, h: 24 },
+          { x: 1470, y: 440, w: 70, h: 24 },
+          { x: 1580, y: 320, w: 70, h: 24 },
+          { x: 1690, y: 400, w: 70, h: 24 },
+          { x: 1800, y: 280, w: 70, h: 24 },
+          { x: 1910, y: 380, w: 70, h: 24 },
+          { x: 2020, y: 404, w: 600, h: 40 },
+        ]
+      },
+      {
+        name: 'Precision',
+        levelWidth: 2200,
+        startX: 50,
+        startY: 404,
+        endZone: { x: 2120, y: 368, w: 80, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 100, h: 40 },
+          { x: 140, y: 360, w: 55, h: 22 },
+          { x: 235, y: 280, w: 55, h: 22 },
+          { x: 330, y: 380, w: 55, h: 22 },
+          { x: 425, y: 300, w: 55, h: 22 },
+          { x: 520, y: 220, w: 55, h: 22 },
+          { x: 615, y: 340, w: 55, h: 22 },
+          { x: 710, y: 260, w: 55, h: 22 },
+          { x: 805, y: 380, w: 55, h: 22 },
+          { x: 900, y: 300, w: 55, h: 22 },
+          { x: 995, y: 220, w: 55, h: 22 },
+          { x: 1090, y: 340, w: 55, h: 22 },
+          { x: 1185, y: 260, w: 55, h: 22 },
+          { x: 1280, y: 400, w: 55, h: 22 },
+          { x: 1375, y: 320, w: 55, h: 22 },
+          { x: 1470, y: 240, w: 55, h: 22 },
+          { x: 1565, y: 360, w: 55, h: 22 },
+          { x: 1660, y: 280, w: 55, h: 22 },
+          { x: 1755, y: 400, w: 55, h: 22 },
+          { x: 1850, y: 320, w: 55, h: 22 },
+          { x: 1945, y: 404, w: 255, h: 40 },
+        ]
+      },
+      {
+        name: 'Final Rush',
+        levelWidth: 2800,
+        startX: 40,
+        startY: 404,
+        endZone: { x: 2720, y: 368, w: 80, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 100, h: 40 },
+          { x: 140, y: 340, w: 65, h: 22 },
+          { x: 245, y: 440, w: 75, h: 40 },
+          { x: 360, y: 280, w: 65, h: 22 },
+          { x: 465, y: 380, w: 65, h: 22 },
+          { x: 570, y: 260, w: 65, h: 22 },
+          { x: 675, y: 360, w: 65, h: 22 },
+          { x: 780, y: 240, w: 65, h: 22 },
+          { x: 885, y: 340, w: 65, h: 22 },
+          { x: 990, y: 420, w: 65, h: 22 },
+          { x: 1095, y: 300, w: 65, h: 22 },
+          { x: 1200, y: 400, w: 65, h: 22 },
+          { x: 1305, y: 280, w: 65, h: 22 },
+          { x: 1410, y: 380, w: 65, h: 22 },
+          { x: 1515, y: 260, w: 65, h: 22 },
+          { x: 1620, y: 360, w: 65, h: 22 },
+          { x: 1725, y: 440, w: 75, h: 40 },
+          { x: 1840, y: 320, w: 65, h: 22 },
+          { x: 1945, y: 404, w: 855, h: 40 },
+        ]
+      },
+      {
+        name: 'The Summit',
+        levelWidth: 2400,
+        startX: 50,
+        startY: 404,
+        endZone: { x: 2320, y: 68, w: 80, h: 44 },
+        platforms: [
+          { x: 0, y: 440, w: 100, h: 40 },
+          { x: 140, y: 380, w: 65, h: 22 },
+          { x: 245, y: 320, w: 65, h: 22 },
+          { x: 350, y: 260, w: 65, h: 22 },
+          { x: 455, y: 200, w: 65, h: 22 },
+          { x: 560, y: 340, w: 65, h: 22 },
+          { x: 665, y: 280, w: 65, h: 22 },
+          { x: 770, y: 220, w: 65, h: 22 },
+          { x: 875, y: 360, w: 65, h: 22 },
+          { x: 980, y: 300, w: 65, h: 22 },
+          { x: 1085, y: 240, w: 65, h: 22 },
+          { x: 1190, y: 380, w: 65, h: 22 },
+          { x: 1295, y: 320, w: 65, h: 22 },
+          { x: 1400, y: 260, w: 65, h: 22 },
+          { x: 1505, y: 200, w: 65, h: 22 },
+          { x: 1610, y: 280, w: 65, h: 22 },
+          { x: 1715, y: 220, w: 65, h: 22 },
+          { x: 1820, y: 160, w: 65, h: 22 },
+          { x: 1925, y: 140, w: 475, h: 24 },
+        ]
+      },
+    ];
+
+    let platforms = [];
+    let endZone = null;
+    let levelWidth = 800;
+    let cameraX = 0;
+    let currentLevelIndex = -1;
+    let gameRunning = false;
+    let levelStartTime = 0;
+    let levelCompleteTime = 0;
+    let levelCompleteOverlayVisible = false;
+
+    // Player
+    const player = {
+      x: 80,
+      y: 300,
+      width: 28,
+      height: 36,
+      vx: 0,
+      vy: 0,
+      speed: 1,
+      jumpForce: 5.7,
+      gravity: 0.1,
+      onGround: false,
+      canDoubleJump: true,
+      hasDoubleJumped: false,
+    };
+
+    const keys = { w: false, a: false, d: false, space: false };
+    let wPressedThisFrame = false;
+
+    function rectOverlap(a, b) {
+      return a.x < b.x + b.w && a.x + a.width > b.x &&
+             a.y < b.y + b.h && a.y + a.height > b.y;
+    }
+
+    function resolvePlatform(obj, plat) {
+      const overlapLeft = (obj.x + obj.width) - plat.x;
+      const overlapRight = (plat.x + plat.w) - obj.x;
+      const overlapTop = (obj.y + obj.height) - plat.y;
+      const overlapBottom = (plat.y + plat.h) - obj.y;
+
+      const minX = Math.min(overlapLeft, overlapRight);
+      const minY = Math.min(overlapTop, overlapBottom);
+
+      if (minY < minX) {
+        if (obj.vy > 0) {
+          obj.y = plat.y - obj.height;
+          obj.vy = 0;
+          obj.onGround = true;
+          obj.hasDoubleJumped = false;
+        } else if (obj.vy < 0) {
+          obj.y = plat.y + plat.h;
+          obj.vy = 0;
+        }
+      } else {
+        if (obj.vx > 0) {
+          obj.x = plat.x - obj.width;
+          obj.vx = 0;
+        } else if (obj.vx < 0) {
+          obj.x = plat.x + plat.w;
+          obj.vx = 0;
+        }
+      }
+    }
+
+    function update() {
+      // Input
+      player.vx = 0;
+      if (keys.a) player.vx = -player.speed;
+      if (keys.d) player.vx = player.speed;
+      if ((keys.w || keys.space) && wPressedThisFrame) {
+        if (player.onGround) {
+          player.vy = -player.jumpForce;
+          player.onGround = false;
+        } else if (player.canDoubleJump && !player.hasDoubleJumped) {
+          player.vy = -player.jumpForce * 0.88;
+          player.hasDoubleJumped = true;
+        }
+      }
+      wPressedThisFrame = false;
+
+      player.onGround = false;
+      player.x += player.vx;
+      player.y += player.vy;
+      player.vy += player.gravity;
+
+      // Clamp vertical speed
+      if (player.vy > 18) player.vy = 18;
+
+      // Platform collisions
+      for (const plat of platforms) {
+        const prevY = player.y - player.vy;
+        const prevX = player.x - player.vx;
+        const box = { x: player.x, y: player.y, width: player.width, height: player.height };
+        if (rectOverlap(box, plat)) {
+          resolvePlatform(player, plat);
+        }
+      }
+
+      // Fall off bottom → reset level
+      if (player.y + player.height > canvas.height) {
+        resetToLevelStart();
+        return;
+      }
+      if (player.y < 0) {
+        player.y = 0;
+        player.vy = 0;
+      }
+
+      // Sides: level 5 (Skyline) only — going left wraps to end area; others reset
+      if (player.x + player.width < 0) {
+        if (currentLevelIndex === 4) {
+          player.x = 722;
+          player.y = 296;
+          player.vx = 0;
+          player.vy = 0;
+        } else {
+          resetToLevelStart();
+          return;
+        }
+      }
+      if (player.x > levelWidth) {
+        if (currentLevelIndex === 4) {
+          player.x = 0;
+        } else {
+          resetToLevelStart();
+          return;
+        }
+      }
+
+      // Camera follow
+      const maxCam = Math.max(0, levelWidth - canvas.width);
+      cameraX = player.x - canvas.width / 2 + player.width / 2;
+      cameraX = Math.max(0, Math.min(maxCam, cameraX));
+
+      // Reach end zone?
+      if (endZone && rectOverlap(
+        { x: player.x, y: player.y, width: player.width, height: player.height },
+        endZone
+      )) {
+        levelCompleteTime = (performance.now() - levelStartTime) / 1000;
+        gameRunning = false;
+        levelCompleteOverlayVisible = true;
+        document.getElementById('levelCompleteOverlay').classList.remove('hidden');
+        document.getElementById('completeTime').textContent = levelCompleteTime.toFixed(2);
+        document.getElementById('completeLevelName').textContent = LEVELS[currentLevelIndex].name;
+      }
+    }
+
+    function draw() {
+      // Background and grid in screen space (no camera) so they don't drag
+      const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      bg.addColorStop(0, '#0f0f18');
+      bg.addColorStop(0.6, '#12121a');
+      bg.addColorStop(1, '#0a0a10');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = 'rgba(60, 80, 100, 0.08)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < canvas.width; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+        ctx.stroke();
+      }
+      for (let j = 0; j < canvas.height; j += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, j);
+        ctx.lineTo(canvas.width, j);
+        ctx.stroke();
+      }
+
+      // World (platforms, end, player) with camera
+      ctx.save();
+      ctx.translate(-cameraX, 0);
+
+      // End zone (finish flag)
+      if (endZone) {
+        const ez = endZone;
+        ctx.fillStyle = 'rgba(80, 220, 120, 0.35)';
+        ctx.strokeStyle = 'rgba(80, 220, 120, 0.9)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(ez.x, ez.y, ez.w, ez.h, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#50dc78';
+        ctx.font = 'bold 24px JetBrains Mono';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('END', ez.x + ez.w / 2, ez.y + ez.h / 2);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+      }
+
+      // Platforms
+      for (const p of platforms) {
+        const grad = ctx.createLinearGradient(p.x, p.y, p.x + p.w, p.y + p.h);
+        grad.addColorStop(0, '#2a3a4a');
+        grad.addColorStop(0.5, '#1e2a36');
+        grad.addColorStop(1, '#253544');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.roundRect(p.x, p.y, p.w, p.h, 6);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(100, 200, 255, 0.35)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Player
+      const px = player.x + player.width / 2;
+      const py = player.y + player.height / 2;
+      const pg = ctx.createRadialGradient(px - 8, py - 10, 0, px, py, player.width);
+      pg.addColorStop(0, '#64c8ff');
+      pg.addColorStop(0.6, '#3a9fd9');
+      pg.addColorStop(1, '#1e6a99');
+      ctx.fillStyle = pg;
+      ctx.beginPath();
+      ctx.roundRect(player.x, player.y, player.width, player.height, 8);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.restore();
+
+      // Timer (screen space)
+      if (gameRunning && levelStartTime > 0) {
+        const elapsed = (performance.now() - levelStartTime) / 1000;
+        ctx.fillStyle = 'rgba(100, 200, 255, 0.95)';
+        ctx.font = 'bold 18px JetBrains Mono';
+        ctx.textAlign = 'right';
+        ctx.fillText(elapsed.toFixed(2) + ' s', canvas.width - 12, 24);
+        ctx.textAlign = 'left';
+      }
+    }
+
+    function resetToLevelStart() {
+      const level = LEVELS[currentLevelIndex];
+      if (!level) return;
+      player.x = level.startX;
+      player.y = level.startY;
+      player.vx = 0;
+      player.vy = 0;
+      player.onGround = false;
+      player.hasDoubleJumped = false;
+      levelStartTime = performance.now();
+    }
+
+    function startGame(levelIndex) {
+      const level = LEVELS[levelIndex];
+      if (!level) return;
+      currentLevelIndex = levelIndex;
+      platforms = level.platforms.map(p => ({ ...p }));
+      endZone = level.endZone ? { ...level.endZone } : null;
+      levelWidth = level.levelWidth != null ? level.levelWidth : 800;
+      cameraX = 0;
+      levelStartTime = performance.now();
+      levelCompleteOverlayVisible = false;
+      document.getElementById('levelCompleteOverlay').classList.add('hidden');
+      player.x = level.startX;
+      player.y = level.startY;
+      player.vx = 0;
+      player.vy = 0;
+      player.onGround = false;
+      player.hasDoubleJumped = false;
+
+      document.getElementById('startMenu').classList.add('hidden');
+      document.getElementById('levelSelect').classList.add('hidden');
+      document.getElementById('backToLevels').classList.remove('hidden');
+      document.getElementById('escHint').classList.remove('hidden');
+      gameRunning = true;
+    }
+
+    function showLevelSelect() {
+      document.getElementById('startMenu').classList.add('hidden');
+      document.getElementById('levelSelect').classList.remove('hidden');
+      document.getElementById('backToLevels').classList.add('hidden');
+      document.getElementById('escHint').classList.add('hidden');
+      document.getElementById('levelCompleteOverlay').classList.add('hidden');
+      gameRunning = false;
+      levelCompleteOverlayVisible = false;
+    }
+
+    function showMenu() {
+      document.getElementById('startMenu').classList.remove('hidden');
+      document.getElementById('levelSelect').classList.add('hidden');
+      document.getElementById('backToLevels').classList.add('hidden');
+      document.getElementById('escHint').classList.add('hidden');
+      document.getElementById('levelCompleteOverlay').classList.add('hidden');
+      gameRunning = false;
+      levelCompleteOverlayVisible = false;
+    }
+
+    function loop() {
+      if (gameRunning) {
+        update();
+        draw();
+      }
+      requestAnimationFrame(loop);
+    }
+
+    // Menu / level select UI
+    document.getElementById('btnSelectLevel').addEventListener('click', showLevelSelect);
+    document.getElementById('btnBackMenu').addEventListener('click', showMenu);
+    document.getElementById('backToLevels').addEventListener('click', showLevelSelect);
+    document.getElementById('btnBackToLevels').addEventListener('click', showLevelSelect);
+
+    const levelGrid = document.getElementById('levelGrid');
+    LEVELS.forEach((level, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'level-btn';
+      btn.innerHTML = `<span class="level-num">Level ${i + 1}</span>${level.name}`;
+      btn.addEventListener('click', () => startGame(i));
+      levelGrid.appendChild(btn);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && gameRunning) {
+        showLevelSelect();
+        e.preventDefault();
+        return;
+      }
+      const k = e.key.toLowerCase();
+      if (k === 'w' || k === 'arrowup') { keys.w = true; wPressedThisFrame = true; e.preventDefault(); }
+      if (k === ' ') { keys.space = true; wPressedThisFrame = true; e.preventDefault(); }
+      if (k === 'a' || k === 'arrowleft') { keys.a = true; e.preventDefault(); }
+      if (k === 'd' || k === 'arrowright') { keys.d = true; e.preventDefault(); }
+    });
+    document.addEventListener('keyup', (e) => {
+      const k = e.key.toLowerCase();
+      if (k === 'w' || k === 'arrowup') keys.w = false;
+      if (k === ' ') keys.space = false;
+      if (k === 'a' || k === 'arrowleft') keys.a = false;
+      if (k === 'd' || k === 'arrowright') keys.d = false;
+    });
+
+    loop();
+  </script>
+</body>
+</html>
