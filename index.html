@@ -591,9 +591,9 @@
       height: 36,
       vx: 0,
       vy: 0,
-      speed: 2,
+      speed: 6,
       jumpForce: 5.7,
-      gravity: 0.1,
+      gravity: 0.15,
       onGround: false,
       canDoubleJump: true,
       hasDoubleJumped: false,
@@ -639,9 +639,16 @@
 
     function update() {
       // Input
-      player.vx = 0;
-      if (keys.a) player.vx = -player.speed;
-      if (keys.d) player.vx = player.speed;
+      const accel = 0.5;
+const friction = 0.8;
+
+if (keys.a) player.vx -= accel;
+if (keys.d) player.vx += accel;
+
+player.vx *= friction;
+
+if (player.vx > player.speed) player.vx = player.speed;
+if (player.vx < -player.speed) player.vx = -player.speed;
       if ((keys.w || keys.space) && wPressedThisFrame) {
         if (player.onGround) {
           player.vy = -player.jumpForce;
